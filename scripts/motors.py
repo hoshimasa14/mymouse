@@ -6,6 +6,7 @@ import smbus
 import ctypes
 from geometry_msgs.msg import Twist
 from math import pi
+from std_msgs.msg import Int32MultiArray
 
 # structure
 class st_amd01_status(ctypes.Structure):
@@ -88,24 +89,17 @@ class AMD01(object):
         self.rpm_right = (self.max_vel * data.linear.x * 60 / (0.4 * pi)) / 2 + self.max_rot * data.angular.z * 2
 
         self.drive(int(self.rpm_right ), int(self.rpm_left * -1))
-        time.sleep(0.02)
 
-        #self.twist = data
-        #self.twist.linear.x = self.rpm_left
-        #self.twist.linear.y = self.rpm_right
-        #pub.publish(self.twist)
+
 
 if __name__ == '__main__':
     m = AMD01()
+    pub = rospy.Publisher("encoder", Int32MultiArray)
     rospy.init_node('motors')
     rospy.Subscriber("cmd_vel", Twist, m.callback)
     rospy.spin()
 
-    try:
-    #while(1):
-        while(1):
-            m.get_state()
-            time.sleep(0.02)
-    except KeyboardInterrupt:
-        m.stop()
-        print('stop')
+    while(1):
+        m.get_state()
+        pub.publish([m.status.reg.m1_speed, m.status.reg.m2_speed])
+        time.sleep(0.02)
