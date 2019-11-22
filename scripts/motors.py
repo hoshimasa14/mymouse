@@ -50,7 +50,6 @@ class AMD01(object):
 
         self.max_vel = 2
         self.max_rot = 10
-        self.twist = Twist()
 
     def get_state(self):
         buf = []
@@ -87,19 +86,20 @@ class AMD01(object):
     def callback(self, data):
         self.rpm_left = (self.max_vel * data.linear.x * 60 / (0.4 * pi)) / 2 - self.max_rot * data.angular.z * 2
         self.rpm_right = (self.max_vel * data.linear.x * 60 / (0.4 * pi)) / 2 + self.max_rot * data.angular.z * 2
-
+        rospy.loginfo("hello")
         self.drive(int(self.rpm_right ), int(self.rpm_left * -1))
 
 
 
 if __name__ == '__main__':
     m = AMD01()
-    pub = rospy.Publisher("encoder", Int32MultiArray)
+    #pub = rospy.Publisher("encoder", Int32MultiArray, queue_size=100)
     rospy.init_node('motors')
     rospy.Subscriber("cmd_vel", Twist, m.callback)
-    rospy.spin()
 
     while(1):
-        m.get_state()
-        pub.publish([m.status.reg.m1_speed, m.status.reg.m2_speed])
+        #m.get_state()
+        #pub.publish([m.status.reg.m1_speed, m.status.reg.m2_speed])
         time.sleep(0.02)
+
+    rospy.spin()
