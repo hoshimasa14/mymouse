@@ -93,13 +93,17 @@ class AMD01(object):
 
 if __name__ == '__main__':
     m = AMD01()
-    #pub = rospy.Publisher("encoder", Int32MultiArray, queue_size=100)
+    pub = rospy.Publisher("encoder", Int32MultiArray, queue_size=100)
     rospy.init_node('motors')
     rospy.Subscriber("cmd_vel", Twist, m.callback)
+    pub_enc = Int32MultiArray()
+    pub_enc.data = [0, 0]
 
     while(1):
+        rospy.loginfo("hello")
         #m.get_state()
-        #pub.publish([m.status.reg.m1_speed, m.status.reg.m2_speed])
+        pub_enc.data = [m.status.reg.m1_speed, m.status.reg.m2_speed]
+        pub.publish(pub_enc)
         time.sleep(0.02)
 
     rospy.spin()
