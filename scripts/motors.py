@@ -55,14 +55,18 @@ class AMD01(object):
         buf = []
         tmp = []
 
-        tmp  = self._bus.read_i2c_block_data( self._addr,  0, 17 )
-        buf += tmp[1:]
-        tmp  = self._bus.read_i2c_block_data( self._addr, 16, 17 )
-        buf += tmp[1:]
-        tmp  = self._bus.read_i2c_block_data( self._addr, 32, 17 )
-        buf += tmp[1:]
-        tmp  = self._bus.read_i2c_block_data( self._addr, 48, 17 )
-        buf += tmp[1:]
+        time.sleep(0.05)
+        tmp  = self._bus.read_i2c_block_data( self._addr,  0, 16 )
+        buf += tmp[:]
+        time.sleep(0.05)
+        tmp  = self._bus.read_i2c_block_data( self._addr, 16, 16 )
+        buf += tmp[:]
+        time.sleep(0.05)
+        tmp  = self._bus.read_i2c_block_data( self._addr, 32, 16 )
+        buf += tmp[:]
+        time.sleep(0.05)
+        tmp  = self._bus.read_i2c_block_data( self._addr, 48, 16 )
+        buf += tmp[:]
 
         for i in range(len(buf)):
             self.status.buf[i] = buf[i]
@@ -77,6 +81,7 @@ class AMD01(object):
         self._bus.write_i2c_block_data( self._addr, 0x18, buf )
 
     def drive(self, m1_rpm, m2_rpm):
+        time.sleep(0.05)
         buf = [ (m1_rpm>>0)&0xFF, (m1_rpm>>8)&0xFF, (m2_rpm>>0)&0xFF, (m2_rpm>>8)&0xFF ]
         self._bus.write_i2c_block_data( self._addr, 0x02, buf )
 
@@ -86,24 +91,25 @@ class AMD01(object):
     def callback(self, data):
         self.rpm_left = (self.max_vel * data.linear.x * 60 / (0.4 * pi)) / 2 - self.max_rot * data.angular.z * 2
         self.rpm_right = (self.max_vel * data.linear.x * 60 / (0.4 * pi)) / 2 + self.max_rot * data.angular.z * 2
-        rospy.loginfo("hello")
         self.drive(int(self.rpm_right ), int(self.rpm_left * -1))
 
 
 
 if __name__ == '__main__':
     m = AMD01()
+    s = m.status.reg
     pub = rospy.Publisher("encoder", Int32MultiArray, queue_size=100)
     rospy.init_node('motors')
     rospy.Subscriber("cmd_vel", Twist, m.callback)
     pub_enc = Int32MultiArray()
-    pub_enc.data = [0, 0]
+    pub_enc.data = [0, 0, 0, 0]
+    time.sleep(0.05)
 
     while(1):
         rospy.loginfo("hello")
-        #m.get_state()
-        pub_enc.data = [m.status.reg.m1_speed, m.status.reg.m2_speed]
+        m.get_state()
+        pub_enc.data = [s.m1_ref_speed, s.m2_ref_speed, s.m1_encoder, s.m2_encoder]
         pub.publish(pub_enc)
-        time.sleep(0.02)
+        time.sleep(0.05)
 
     rospy.spin()
