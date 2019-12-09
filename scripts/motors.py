@@ -56,17 +56,17 @@ class AMD01(object):
         tmp = []
 
         time.sleep(0.05)
-        tmp  = self._bus.read_i2c_block_data( self._addr,  0, 16 )
-        buf += tmp[:]
+        tmp  = self._bus.read_i2c_block_data( self._addr,  0, 17 )
+        buf += tmp[1:]
         time.sleep(0.05)
-        tmp  = self._bus.read_i2c_block_data( self._addr, 16, 16 )
-        buf += tmp[:]
+        tmp  = self._bus.read_i2c_block_data( self._addr, 16, 17 )
+        buf += tmp[1:]
         time.sleep(0.05)
-        tmp  = self._bus.read_i2c_block_data( self._addr, 32, 16 )
-        buf += tmp[:]
+        tmp  = self._bus.read_i2c_block_data( self._addr, 32, 17 )
+        buf += tmp[1:]
         time.sleep(0.05)
-        tmp  = self._bus.read_i2c_block_data( self._addr, 48, 16 )
-        buf += tmp[:]
+        tmp  = self._bus.read_i2c_block_data( self._addr, 48, 17 )
+        buf += tmp[1:]
 
         for i in range(len(buf)):
             self.status.buf[i] = buf[i]
@@ -99,17 +99,18 @@ if __name__ == '__main__':
     m = AMD01()
     s = m.status.reg
     pub = rospy.Publisher("encoder", Int32MultiArray, queue_size=100)
+
     rospy.init_node('motors')
     rospy.Subscriber("cmd_vel", Twist, m.callback)
+
     pub_enc = Int32MultiArray()
     pub_enc.data = [0, 0, 0, 0]
-    time.sleep(0.05)
 
-    while(1):
-        rospy.loginfo("hello")
+    time.sleep(0.02)
+
+    while not rospy.is_shutdown():
         m.get_state()
         pub_enc.data = [s.m1_ref_speed, s.m2_ref_speed, s.m1_encoder, s.m2_encoder]
         pub.publish(pub_enc)
         time.sleep(0.05)
 
-    rospy.spin()
