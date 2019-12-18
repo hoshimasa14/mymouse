@@ -46,9 +46,8 @@ class AMD01(object):
 
 	def get_state(self):
 		buf = []
-
-		time.sleep(1)
-		buf = self._bus.read_i2c_block_data( self._addr,  0, 32 )
+#		self._bus.write_i2c_block_data(self._addr, 0x80, [0x40])
+		buf = self._bus.read_i2c_block_data( self._addr,  0, 64 )
 
 		for i in range(len(buf)):
 			self.status.buf[i] = buf[i]
@@ -69,6 +68,14 @@ class AMD01(object):
 	def stop(self):
 		self.drive(0, 0)
 
+	def get_state2(self):
+		buf = self._bus.read_i2c_block_data(self._addr, 0x02, 4)
+		print("b")
+		for i in range(len(buf)):
+			self.status.buf[i] = buf[i]
+		return buf
+
+
 def motor_test():
 	m = AMD01()
 	for i in range(50):
@@ -78,12 +85,16 @@ def motor_test():
 
 def encoder_test():
 	m =AMD01()
+#	for i in range(50):
 	while(1):
-		m.get_state()
-		print(m.status.reg.m1_encoder)
+		print("a")
+#		m.drive(10, -10)
+		m.get_state2()
+		print(m.status.reg.control_state, m.status.reg.m1_ref_speed)
 		time.sleep(0.01)
 
 
 
 if __name__ == '__main__':
-	motor_test()
+#	motor_test()
+	encoder_test()

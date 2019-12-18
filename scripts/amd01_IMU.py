@@ -45,7 +45,7 @@ def imu_test():
 	m = AMD01_IMU()
 	while(1):
 		m.get_imu_status()
-		print(int(m.gx), int(m.gy), int(m.gz))
+		print(int(m.gx), int(m.gy), int(m.gz), int(m.ax))
 		time.sleep(1)
 
 
