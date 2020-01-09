@@ -1,5 +1,5 @@
 <launch>
   <node name="joy_node" pkg="joy" type="joy_node" />
   <node name="controller" pkg="mymouse" type="controller" />
-  <node name="motors" pkg="mymouse" type="amd01_ros.py" output="screen" />
+  <node name="motors" pkg="mymouse" type="motors_ros.py" output="screen" />
 </launch>

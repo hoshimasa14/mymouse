@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 
-import rospy
 import time
 import smbus
 import ctypes
-from geometry_msgs.msg import Twist
-from math import pi
-from std_msgs.msg import Int32MultiArray
 
 # structure
 class st_amd01_status(ctypes.Structure):
@@ -31,86 +27,74 @@ class st_amd01_status(ctypes.Structure):
     ('firm_version',  ctypes.c_uint8 ),
     ('dummy',         ctypes.c_uint8 * 30) ]
 
-class amd01_status(ctypes.Union):
+class amd01_status(ctypes.Union):   #unionを使うことで64byteのbuffer情報を各status変数に割り振る
     _fields_ = [ ('buf', ctypes.c_uint8 * 64), ('reg', st_amd01_status) ]
 
 class AMD01(object):
-    def __init__(self, addr=0x58):
-        # I2C interface
-        self._addr = addr
-        self._bus = smbus.SMBus(1)
-        time.sleep(0.1)
-        if( self._bus ):
-            print( 'I2C bus available' )
-        else:
-            print( 'No I2C bus ' )
+	def __init__(self):
+		# I2C interface
+		self._addr = 0x58
+		self._bus = smbus.SMBus(1)
+		time.sleep(0.1)
+		if( self._bus ):
+			print( 'I2C bus available' )
+		else:
+			print( 'No I2C bus ' )
 
-        # status
-        self.status = amd01_status()
+		# status
+		self.status = amd01_status()
 
-        self.max_vel = 2
-        self.max_rot = 10
+	def get_state(self):
+		buf = []
+#		self._bus.write_i2c_block_data(self._addr, 0x80, [0x40])
+		buf = self._bus.read_i2c_block_data( self._addr,  0, 64 )
 
-    def get_state(self):
-        buf = []
-        tmp = []
+		for i in range(len(buf)):
+			self.status.buf[i] = buf[i]
+		return buf
 
-        time.sleep(0.05)
-        tmp  = self._bus.read_i2c_block_data( self._addr,  0, 17 )
-        buf += tmp[1:]
-        time.sleep(0.05)
-        tmp  = self._bus.read_i2c_block_data( self._addr, 16, 17 )
-        buf += tmp[1:]
-        time.sleep(0.05)
-        tmp  = self._bus.read_i2c_block_data( self._addr, 32, 17 )
-        buf += tmp[1:]
-        time.sleep(0.05)
-        tmp  = self._bus.read_i2c_block_data( self._addr, 48, 17 )
-        buf += tmp[1:]
+	def control_state( self, ctrl ):
+		buf = [ (ctrl>>0)&0xFF, (ctrl>>8)&0xFF ]
+		self._bus.write_i2c_block_data( self._addr, 0x00, buf )
 
-        for i in range(len(buf)):
-            self.status.buf[i] = buf[i]
-        return buf
+	def gain( self, kp, ki ):
+		buf = [ (kp>>0)&0xFF, (kp>>8)&0xFF, (ki>>0)&0xFF, (ki>>8)&0xFF ]
+		self._bus.write_i2c_block_data( self._addr, 0x18, buf )
 
-    def control_state( self, ctrl ):
-        buf = [ (ctrl>>0)&0xFF, (ctrl>>8)&0xFF ]
-        self._bus.write_i2c_block_data( self._addr, 0x00, buf )
+	def drive(self, m1_rpm, m2_rpm):
+		buf = [ (m1_rpm>>0)&0xFF, (m1_rpm>>8)&0xFF, (m2_rpm>>0)&0xFF, (m2_rpm>>8)&0xFF ]
+		self._bus.write_i2c_block_data( self._addr, 0x02, buf )
 
-    def gain( self, kp, ki ):
-        buf = [ (kp>>0)&0xFF, (kp>>8)&0xFF, (ki>>0)&0xFF, (ki>>8)&0xFF ]
-        self._bus.write_i2c_block_data( self._addr, 0x18, buf )
+	def stop(self):
+		self.drive(0, 0)
 
-    def drive(self, m1_rpm, m2_rpm):
-        time.sleep(0.05)
-        buf = [ (m1_rpm>>0)&0xFF, (m1_rpm>>8)&0xFF, (m2_rpm>>0)&0xFF, (m2_rpm>>8)&0xFF ]
-        self._bus.write_i2c_block_data( self._addr, 0x02, buf )
+	def get_state2(self):
+		buf = self._bus.read_i2c_block_data(self._addr, 0x02, 4)
+		print("b")
+		for i in range(len(buf)):
+			self.status.buf[i] = buf[i]
+		return buf
 
-    def stop(self):
-        self.drive(0, 0)
 
-    def callback(self, data):
-        self.rpm_left = (self.max_vel * data.linear.x * 60 / (0.4 * pi)) / 2 - self.max_rot * data.angular.z * 2
-        self.rpm_right = (self.max_vel * data.linear.x * 60 / (0.4 * pi)) / 2 + self.max_rot * data.angular.z * 2
-        self.drive(int(self.rpm_right ), int(self.rpm_left * -1))
+def test_motor():
+	m = AMD01()
+	for i in range(50):
+		m.drive(10,-10)
+		time.sleep(0.01)
+
+
+def test_encoder():
+	m =AMD01()
+#	for i in range(50):
+	while(1):
+		print("a")
+#		m.drive(10, -10)
+		m.get_state2()
+		print(m.status.reg.control_state, m.status.reg.m1_ref_speed)
+		time.sleep(0.01)
 
 
 
 if __name__ == '__main__':
-    m = AMD01()
-    s = m.status.reg
-    pub = rospy.Publisher("encoder", Int32MultiArray, queue_size=100)
-
-    rospy.init_node('motors')
-    rospy.Subscriber("cmd_vel", Twist, m.callback)
-
-    pub_enc = Int32MultiArray()
-    pub_enc.data = [0, 0, 0, 0]
-
-    time.sleep(0.02)
-
-    while not rospy.is_shutdown():
-        m.get_state()
-        pub_enc.data = [s.m1_ref_speed, s.m2_ref_speed, s.m1_encoder, s.m2_encoder]
-        pub.publish(pub_enc)
-        time.sleep(0.05)
-
+	test_motor()
+#	encoder_test()
