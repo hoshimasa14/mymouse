@@ -22,15 +22,26 @@ class ICM():	#class of ICM_20689
 		else:
 			print( 'No IMU_I2C bus ' )
 
-		self.time = time.time()
-		self.alpha = 0.8	#lowpassfilter
-		self.gravityx = 0
-		self.gravityy = 0
-		self.gravityz = 0
+		self.cycle_time =  1/(30*10**3)
+		self.cycle == 0
+		self.vx = 0
+		self.vy = 0
+		self.vz = 0
+		self.cx = 0
+		self.cy = 0
+		self.cz = 0
 
 	def get_imu_status(self):
+		if self.cycle == 0:
+			self.dt = self.cycle_time
+			self.cycle = 1
+		else:
+			self.dt = time.time() - self.time
+		self.time = time.time()
 		read_imu()
+
 		cal_acc_gyr()
+
 		cal_vel_comp()
 #		cal_loc()
 
@@ -51,38 +62,38 @@ class ICM():	#class of ICM_20689
 		self.az = self.rawaz / 16384.0
 		self.gx = self.rawgx / 131.0
 		self.gy = self.rawgy / 131.0
-		self.gz = self.rawaz / 131.0
-
-		self.gravityx = alpha * self.gravityx + (1 - alpha) * self.preax;
-		self.gravityy = alpha * self.gravityy + (1 - alpha) * self.preay;
-		self.gravityz = alpha * self.gravityz + (1 - alpha) * self.preaz;
-
-		self.comax = self.ax - self.gravityx
-		self.comay = self.ay - self.gravityy
-		self.comaz = self.az - self.gravityz
+		self.gz = self.rawgz / 131.0
 
 	def cal_vel_comp(self):
-		self.dt = self.time - time.time()
-		self.time = time.time()
+		self.vx = self.vx + ax * self.dt
+		self.vy = self.vy + ay * self.dt
+		self.vz = self.vz + az * self.dt
 
-		self.vx = vx + comax * dt
-		self.vy = vy + comay * dt
-		self.vz = vz + comaz * dt
+		self.cx = self.cx + gx * self.dt
+		self.cy = self.cy + gy * self.dt
+		self.cz = self.cz + gz * self.dt
 
-		self.cx
-		self.cy
-		self.cz
+	def cal_loc(self):
+		self.lx = self.lx + cx * self.dt
+		self.ly = self.ly + cy * self.dt
+		self.lz = self.lz + cz * self.dt
 
 
 
 def test_imu():
 	o = ICM()
-	for i in range(20):
+
+	for i in range(30000):
+		process_time = time.time()
 		o.get_imu_status()
-		print(int(o.ax), int(o.ay), int(o.az), int(o.gx), int(o.gy), int(o.gz))
-		print(int(o.vx), int(o.vy), int(o.vz), int(o.cx), int(o.cy), int(o.cz))
+		print(int(o.ax), int(o.ay), int(o.az))
+		print(int(o.gx), int(o.gy), int(o.gz))
+		print(int(o.vx), int(o.vy), int(o.vz))
+		print(int(o.cx), int(o.cy), int(o.cz))
 		print(int(o.lx), int(o.ly), int(o.lz))
-		time.sleep(1)
+
+		process_time = time.time() - process_time
+		time.sleep(o.cycle_time - process_time)
 
 
 
